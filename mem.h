@@ -2,6 +2,7 @@ struct memEntry{
    struct memEntry *prev, *next;
    int isfree;
    unsigned int size;
+   unsigned int sanity_check;
 }
 
 void *
