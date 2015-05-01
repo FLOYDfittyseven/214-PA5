@@ -7,6 +7,9 @@ struct memEntry{
 void *
 mymalloc( unsigned int size, char * file, int line );
 
+void *
+mymalloc2( unsigned int size, char * file, int line );
+
 void
 myfree( void * p, char * file, int line );
 
