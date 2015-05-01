@@ -9,7 +9,7 @@ mymalloc( unsigned int size, char * file, int line )
 {
 	static int				initialized = 0;
 	static struct memEntry	*root;
-	struct memEntry			*p, *next;
+	struct memEntry			*p, *next, *smallest;
 	
 	/*
 	 * Initialize the block with a memEntry struct
@@ -21,10 +21,16 @@ mymalloc( unsigned int size, char * file, int line )
 		root->next = 0;
 		root->size = blocksize - sizeof (struct memEntry);
 		root->isfree = 1;
+		root->sanity_check = 0xAAAAAAAA;
 		initialized = 1;
 	}
 	
 	p = root;
+	smallest = NULL;
+	
+	/*
+	 * Best Fit Method
+	 */
 	do
 	{
 		/* 
@@ -34,45 +40,62 @@ mymalloc( unsigned int size, char * file, int line )
 		{
 			p = p->next;
 		}
-		/*
-		 * Chunk not big enough for an additional memEntry
-		 */
-		else if( p->size < ( size + sizeof(struct memEntry) ) )
-		{
-			p->isfree = 0;
-			return (char *)p + sizeof(struct memEntry);
-		}
-		/*
-		 * Chunk big enough for an additional memEntry
-		 */
 		else
 		{
-			/*
-			 * Moving pointers accordingly
-			 */
-			next = (struct memEntry *)( (char *)p + sizeof(struct memEntry) + size )
-			next->prev = p;
-			next->next = p->next;
-			if( p->next != 0 )
+			if( !smallest )
 			{
-				p->next->prev = next;
+				smallest = p;
 			}
-			p->next = next;
-			
-			/*
-			 * Setting values
-			 */
-			 next->size = p->size - sizeof(struct memEntry) - size;
-			 next->isfree = 1;
-			 p->size = size;
-			 p->isfree = 0;
-			 
-			 return (char *)p + sizeof(struct memEntry);
+			else if( p->size < smallest->size )
+			{
+				smallest = p;
+			}
+			p = p->next;
 		}
+		
 	}while( p != 0 );
 	
+	if( !smallest )
+	{
 	fprintf(stderr, "No chunk of size %d is available. mymalloc failed in %s line %d.\n", size, file, line);
 	return (char *)0;
+	}
+	/*
+	* Chunk not big enough for an additional memEntry
+	*/
+	else if( smallest->size < ( size + sizeof(struct memEntry) ) )
+	{
+		smallest->isfree = 0;
+		return (char *)smallest + sizeof(struct memEntry);
+	}
+	/*
+	* Chunk big enough for an additional memEntry
+	*/
+	else
+	{
+		/*
+		* Moving pointers accordingly
+		*/
+		next = (struct memEntry *)( (char *)smallest + sizeof(struct memEntry) + size )
+		next->prev = smallest;
+		next->next = smallest->next;
+		if( smallest->next != 0 )
+		{
+			smallest->next->prev = next;
+		}
+		smallest->next = next;
+		
+		/*
+		* Setting values
+		*/
+		next->size = smallest->size - sizeof(struct memEntry) - size;
+		next->isfree = 1;
+		next->sanity_check = 0xAAAAAAAA;
+		smallest->size = size;
+		smallest->isfree = 0;
+			 
+		return (char *)smallest + sizeof(struct memEntry);
+	}
 }
 
 void *
@@ -145,8 +168,32 @@ void
 myfree( void * p, char * file, int line )
 {
 	struct memEntry *ptr, *prev, *next;
+	char *blockbeg, *blockend;
 	
-	ptr = (struct memEntry *) ( (char *)p - sizeof(struct memEntry) );
+	blockbeg = myblock[0];
+	blockend = myblock[blocksize - 1];
+	
+	if( !p )
+	{
+		fprintf( stderr, "Error: Attempting to free a null pointer in %s line %d.\n", file, line );
+		return;
+	}
+	else if( (ptr = (struct memEntry *) ( (char *)p - sizeof(struct memEntry) )), ptr < blockbeg || (char *)p > blockend )
+	{
+		fprintf( stderr, "Error: Attempting to free pointer outside of the heap in %s line %d.\n", file, line );
+		return;
+	}
+	else if( ptr->sanity_check != 0xAAAAAAAA )
+	{
+		fprintf( stderr, "Error: Attempting to free a pointer that has not been dynamically allocated in %s line %d.\n", file, line );
+		return;
+	}
+	else if( ptr->isfree )
+	{
+		fprintf( stderr, "Error: Attempting to free a pointer that is not currently allocated in %s line %d.\n", file, line );
+		return;
+	}
+	
 	/*
 	 * If chunk being freed is not the first chunk in the block and
 	 * the previous chunk is free, combine chunks
