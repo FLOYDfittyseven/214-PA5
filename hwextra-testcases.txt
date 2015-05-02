@@ -1,0 +1,19 @@
+./test1
+	Tests: Valid malloc and free
+	Expected Output: None
+
+./test2
+	Tests: Attempting to call malloc after all memory is already in use, attempting to free null pointer, attempting to malloc memory that has been freed, leaving memory unfreed
+	Expected Output: Alert user that requested amount of memory is not available, complain about null pointer, complain about exiting without freeing memory
+
+./test3
+	Tests: Attempting to allocate chunk of memory larger than the heap itself
+	Expected Output: Alert user that requested amount of memory is not available
+
+./test4
+	Tests: Attempting to free pointer to dynamic memory that was not returned by malloc, attempting to free pointer outside of the heap
+	Expected Output: Complain about freeing dynamic memory not returned by malloc, complain about pointer outside the heap
+
+./test5
+	Tests: Redundant freeing
+	Expected Output: Complain about freeing already-free memory
