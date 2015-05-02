@@ -4,6 +4,29 @@
 
 static char myblock[blocksize];
 
+void
+heapTraversal()
+{
+	struct memEntry		*ptr;
+	int					count;
+	
+	ptr = (struct memEntry *) myblock;
+	count = 0;
+	while( ptr )
+	{
+		if( !ptr->isfree )
+		{
+			count++;
+		}
+		ptr = ptr->next;
+	}
+	
+	if( count > 0 )
+	{
+		fprintf( stderr, "WARNING: %d dynamically allocated chunks of memory left unfreed.\n", count );
+	}
+}
+
 void *
 mymalloc( unsigned int size, char * file, int line )
 {
