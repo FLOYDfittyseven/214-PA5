@@ -5,6 +5,9 @@ struct memEntry{
    unsigned int sanity_check;
 }
 
+void
+heapTraversal();
+
 void *
 mymalloc( unsigned int size, char * file, int line );
 
