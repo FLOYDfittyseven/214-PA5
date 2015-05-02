@@ -46,6 +46,7 @@ mymalloc( unsigned int size, char * file, int line )
 		root->isfree = 1;
 		root->sanity_check = 0xAAAAAAAA;
 		initialized = 1;
+		atexit(heapTraversal);
 	}
 	
 	p = root;
