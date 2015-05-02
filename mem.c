@@ -1,6 +1,7 @@
-#include "mem.h"
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include "mem.h"
 
 static char myblock[blocksize];
 
@@ -23,7 +24,7 @@ heapTraversal()
 	
 	if( count > 0 )
 	{
-		fprintf( stderr, "WARNING: %d dynamically allocated chunks of memory left unfreed.\n", count );
+		fprintf( stderr, "\x1b[1;33mWARNING: %d dynamically allocated chunks of memory left unfreed.\x1b[0m\n", count );
 	}
 }
 
@@ -81,7 +82,7 @@ mymalloc( unsigned int size, char * file, int line )
 	
 	if( !smallest )
 	{
-	fprintf(stderr, "No chunk of size %d is available. mymalloc failed in %s line %d.\n", size, file, line);
+	fprintf(stderr, "\x1b[1;33mNo chunk of size %d is available. mymalloc failed in %s line %d.\x1b[0m\n", size, file, line);
 	return (char *)0;
 	}
 	/*
@@ -100,7 +101,7 @@ mymalloc( unsigned int size, char * file, int line )
 		/*
 		* Moving pointers accordingly
 		*/
-		next = (struct memEntry *)( (char *)smallest + sizeof(struct memEntry) + size )
+		next = (struct memEntry *)( (char *)smallest + sizeof(struct memEntry) + size );
 		next->prev = smallest;
 		next->next = smallest->next;
 		if( smallest->next != 0 )
@@ -122,99 +123,33 @@ mymalloc( unsigned int size, char * file, int line )
 	}
 }
 
-void *
-mymalloc2( unsigned int size, char * file, int line )
-{
-	static struct memEntry		*root = 0, *last = 0;
-	struct memEntry				*p, *next;
-	
-	p = root;
-	
-	while( p != 0 )
-	{
-		if( p->size < size )
-		{
-			p = p->next;
-		}
-		else if( !p->isfree )
-		{
-			p = p->next;
-		}
-		else if( p->size < (size + sizeof(struct memEntry)) )
-		{
-			p->isfree = 0;
-			return (char *)p + sizeof(struct memEntry);
-		}
-		else
-		{
-			next = (struct memEntry *)( (char *)p + sizeof(struct memEntry) + size );
-			next->prev = p;
-			next->next = p->next;
-			if( p->next != 0 )
-			{
-				p->next->prev = next;
-			}
-			p->next = next;
-			next->size = p->size - sizeof(struct memEntry) - size;
-			next->isfree = 1;
-			p->size = size;
-			p->isfree = 0;
-			return (char *)p + sizeof(struct memEntry);
-		}
-	}
-	
-	if( (p = (struct memEntry *) sbrk(sizeof(struct memEntry) + size)) == (void *)-1 )
-	{
-		return 0;		//also, complain
-	}
-	else if( last == 0 )
-	{
-		p->prev = p->next = 0;
-		p->size = 0;
-		p->isfree = 0;
-		root = last = p;
-		return (char *)p + sizeof(struct memEntry);
-	}
-	else
-	{
-		p->prev = last;
-		p->next = last->next;		//0 (?)
-		p->size = size;
-		p->isfree = 0;
-		last->next = p;
-		last = p;
-		return p+1;
-	}
-
-}
-
 void
 myfree( void * p, char * file, int line )
 {
 	struct memEntry *ptr, *prev, *next;
 	char *blockbeg, *blockend;
 	
-	blockbeg = myblock[0];
-	blockend = myblock[blocksize - 1];
+	blockbeg = &myblock[0];
+	blockend = &myblock[blocksize - 1];
 	
 	if( !p )
 	{
-		fprintf( stderr, "Error: Attempting to free a null pointer in %s line %d.\n", file, line );
+		fprintf( stderr, "\x1b[1;31mError: Attempting to free a null pointer in %s line %d.\x1b[0m\n", file, line );
 		return;
 	}
-	else if( (ptr = (struct memEntry *) ( (char *)p - sizeof(struct memEntry) )), ptr < blockbeg || (char *)p > blockend )
+	else if( (ptr = (struct memEntry *) ( (char *)p - sizeof(struct memEntry) )), (char *)ptr < blockbeg || (char *)p > blockend )
 	{
-		fprintf( stderr, "Error: Attempting to free pointer outside of the heap in %s line %d.\n", file, line );
+		fprintf( stderr, "\x1b[1;31mError: Attempting to free pointer outside of the heap in %s line %d.\x1b[0m\n", file, line );
 		return;
 	}
 	else if( ptr->sanity_check != 0xAAAAAAAA )
 	{
-		fprintf( stderr, "Error: Attempting to free a pointer that has not been dynamically allocated in %s line %d.\n", file, line );
+		fprintf( stderr, "\x1b[1;31mError: Attempting to free a pointer that has not been returned by mymalloc in %s line %d.\x1b[0m\n", file, line );
 		return;
 	}
 	else if( ptr->isfree )
 	{
-		fprintf( stderr, "Error: Attempting to free a pointer that is not currently allocated in %s line %d.\n", file, line );
+		fprintf( stderr, "\x1b[1;31mError: Attempting to free a pointer to memory that is not currently allocated in %s line %d.\x1b[0m\n", file, line );
 		return;
 	}
 	
